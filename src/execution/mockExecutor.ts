@@ -35,7 +35,10 @@ export class MockExecutor {
 
     // Generate executed price with ±0.5% variation from best quote
     const variation = 0.995 + Math.random() * 0.01; // 0.995 to 1.005
-    const executedPrice = bestQuote.price * variation;
+    let executedPrice = bestQuote.price * variation;
+
+    // Ensure executed price never falls below target price
+    executedPrice = Math.max(executedPrice, targetPrice);
 
     // Generate fake transaction hash
     const txHash = this.generateTxHash();

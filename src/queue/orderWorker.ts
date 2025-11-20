@@ -3,7 +3,7 @@ import { OrderQueue } from './orderQueue';
 import { MockDexRouter } from '../dex/mockDexRouter';
 import { MockExecutor } from '../execution/mockExecutor';
 import { WebSocketManager } from '../ws/websocketManager';
-import { OrderJobData, OrderStatus } from '../types/orderTypes';
+import { OrderJobData, OrderStatus, BestQuote } from '../types/orderTypes';
 import { Logger } from '../utils/logger';
 import { sleep } from '../utils/sleep';
 import prisma from '../db/client';
@@ -102,7 +102,7 @@ export class OrderWorker {
       });
       await this.updateOrderStatus(orderId, 'waiting-price');
 
-      const priceMet = await this.waitForTargetPrice(
+      const finalQuote = await this.waitForTargetPrice(
         orderId,
         tokenIn,
         tokenOut,
@@ -111,7 +111,7 @@ export class OrderWorker {
         bestQuote.selectedDex
       );
 
-      if (!priceMet) {
+      if (!finalQuote) {
         // Timeout - price never met target
         const failureReason = 'Price did not reach target within timeout period';
         this.wsManager.sendStatus(orderId, 'failed', {
@@ -124,9 +124,6 @@ export class OrderWorker {
         });
         return;
       }
-
-      // Get final best quote before execution
-      const finalQuote = await this.dexRouter.getBestQuote(tokenIn, tokenOut, amount);
 
       // Step 3: Building - Prepare transaction
       this.wsManager.sendStatus(orderId, 'building', {
@@ -189,7 +186,7 @@ export class OrderWorker {
     amount: number,
     targetPrice: number,
     selectedDex: string
-  ): Promise<boolean> {
+  ): Promise<BestQuote | null> {
     const startTime = Date.now();
 
     while (Date.now() - startTime < this.maxPriceWaitTime) {
@@ -215,7 +212,7 @@ export class OrderWorker {
           bestPrice: bestQuote.price,
           targetPrice,
         });
-        return true;
+        return bestQuote;
       }
 
       // Wait 5 seconds before next check
@@ -223,7 +220,7 @@ export class OrderWorker {
     }
 
     Logger.warn('Price wait timeout', { orderId, targetPrice });
-    return false;
+    return null;
   }
 
   /**

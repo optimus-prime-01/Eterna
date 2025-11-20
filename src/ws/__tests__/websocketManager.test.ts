@@ -1,5 +1,5 @@
 import { WebSocketManager } from '../websocketManager';
-import { WebSocket } from 'ws';
+import * as ws from 'ws';
 
 // Mock WebSocket
 jest.mock('ws');
@@ -7,14 +7,14 @@ jest.mock('ws');
 describe('WebSocketManager', () => {
   let wsManager: WebSocketManager;
   let mockServer: any;
-  let mockWs: jest.Mocked<WebSocket>;
+  let mockWs: jest.Mocked<ws>;
 
   beforeEach(() => {
     wsManager = new WebSocketManager();
     mockWs = {
       send: jest.fn(),
       close: jest.fn(),
-      readyState: WebSocket.OPEN,
+      readyState: ws.OPEN,
       on: jest.fn(),
     } as any;
 
